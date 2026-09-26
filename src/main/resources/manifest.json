@@ -1,0 +1,15 @@
+{
+  "Group": "com.orbisguard",
+  "Name": "OrbisGuard-Mixins",
+  "Version": "${version}",
+  "Description": "Mixin companion for OrbisGuard - closes protection bypasses not covered by Hytale's plugin API",
+  "Authors": [{"Name": "wiflow"}],
+  "ServerVersion": "*",
+  "Dependencies": {},
+  "OptionalDependencies": {},
+  "DisabledByDefault": false,
+  "Main": "${entry_point}",
+  "Mixins": [
+    "orbisguard-mixins.mixins.json"
+  ]
+}

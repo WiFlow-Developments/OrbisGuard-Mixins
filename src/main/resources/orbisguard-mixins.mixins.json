@@ -1,0 +1,39 @@
+{
+  "required": true,
+  "minVersion": "0.8.7",
+  "compatibilityLevel": "JAVA_16",
+  "package": "com.orbisguard.mixins.mixin",
+  "mixins": [
+    "PlayerItemEntityPickupSystemMixin",
+    "BlockHarvestUtilsMixin",
+    "ExplosionBlockDamageMixin",
+    "CommandManagerMixin",
+    "SpawnMarkerEntityMixin",
+    "WorldSpawnJobSystemsMixin",
+    "NPCPluginSpawnMixin",
+    "FloodFillPositionSelectorMixin",
+    "InteractionEntryMixin",
+    "InteractionChainMixin",
+    "StoreAddEntityMixin",
+    "DeathItemDropMixin",
+    "NPCDeathItemDropMixin",
+    "ItemDurabilityMixin",
+    "BenchWindowMixin",
+    "CraftingManagerMixin",
+    "BuilderToolsPacketHandlerMixin",
+    "TeleporterInteractionMixin",
+    "EnterPortalInteractionMixin",
+    "ReturnPortalInteractionMixin",
+    "TeleportConfigInstanceInteractionMixin",
+    "TeleportInstanceInteractionMixin",
+    "ExitInstanceInteractionMixin",
+    "FireFluidTickerMixin",
+    "HubPortalInteractionMixin",
+    "CycleBlockGroupInteractionMixin",
+    "HarvestCropInteractionMixin",
+    "RespawnLocationMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

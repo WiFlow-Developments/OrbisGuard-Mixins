@@ -1,0 +1,73 @@
+plugins {
+    id 'java'
+}
+
+group = 'com.orbisguard'
+version = "0.10.0"
+
+java {
+    toolchain {
+        // Toolchain stays 25 so javac can READ the v69 (Java 25) HytaleServer.jar dependency.
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+    // ...but the mixin CLASSES are emitted as Java 16 bytecode (class v60). Hyinit's
+    // shaded Mixin/ASM reports API "9.0" with minor 0 (its ASM manifest version is
+    // stripped during shading), which makes MixinEnvironment.setCompatibilityLevel cap
+    // the highest settable level at JAVA_16 -- isAtLeastVersion(9,1)+ all return false.
+    // Mixin refuses to load mixin classes newer than the active compatibility level, so
+    // these must be v60 to match compatibilityLevel JAVA_16 in orbisguard-mixins.mixins.json.
+    // source/target (not --release) keeps the v69 classpath readable while constraining
+    // language + bytecode to Java 16.
+    sourceCompatibility = JavaVersion.VERSION_16
+    targetCompatibility = JavaVersion.VERSION_16
+}
+
+repositories {
+    mavenLocal()  // Use Maven's cached artifacts from ~/.m2/repository
+    mavenCentral()
+    maven {
+        url "https://maven.hytale.com/release"
+    }
+    maven {
+        name = "FabricMC"
+        url = "https://maven.fabricmc.net/"
+    }
+    maven {
+        name = "Sponge"
+        url = "https://repo.spongepowered.org/maven/"
+    }
+}
+
+dependencies {
+    // Hytale Server API
+    compileOnly(files(System.getProperty("user.home") + "/AppData/Roaming/Hytale/install/release/package/game/latest/Server/HytaleServer.jar"))
+
+    // Mixin runtime is provided by Hyinit, which shades these exact versions.
+    // Compile against the same artifacts so compile-time API == runtime API.
+    compileOnly 'net.fabricmc:sponge-mixin:0.17.0+mixin.0.8.7'
+    compileOnly 'io.github.llamalad7:mixinextras-fabric:0.5.3'
+
+    // Do not compile against the main plugin. Cross-classloader hooks use plain objects.
+}
+
+processResources {
+    filesMatching('manifest.json') {
+        expand(
+            'version': project.version,
+            'entry_point': 'com.orbisguard.mixins.OrbisGuardMixinsPlugin',
+            'hytale_server_version': '0.6.8'
+        )
+    }
+}
+
+jar {
+    archiveBaseName = 'OrbisGuard-Mixins'
+
+    manifest {
+        attributes(
+            'Implementation-Title': 'OrbisGuard-Mixins',
+            'Implementation-Version': version,
+            'MixinConfigs': 'orbisguard-mixins.mixins.json'
+        )
+    }
+}
