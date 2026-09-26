@@ -3,7 +3,6 @@ plugins {
 }
 
 group = 'com.orbisguard'
-version = "0.10.0"
 
 java {
     toolchain {
@@ -23,7 +22,6 @@ java {
 }
 
 repositories {
-    mavenLocal()  // Use Maven's cached artifacts from ~/.m2/repository
     mavenCentral()
     maven {
         url "https://maven.hytale.com/release"
@@ -40,7 +38,7 @@ repositories {
 
 dependencies {
     // Hytale Server API
-    compileOnly(files(System.getProperty("user.home") + "/AppData/Roaming/Hytale/install/release/package/game/latest/Server/HytaleServer.jar"))
+    compileOnly "com.hypixel.hytale:Server:${hytale_server_version}"
 
     // Mixin runtime is provided by Hyinit, which shades these exact versions.
     // Compile against the same artifacts so compile-time API == runtime API.
@@ -55,7 +53,7 @@ processResources {
         expand(
             'version': project.version,
             'entry_point': 'com.orbisguard.mixins.OrbisGuardMixinsPlugin',
-            'hytale_server_version': '0.6.8'
+            'hytale_server_version': hytale_server_version
         )
     }
 }
@@ -69,5 +67,27 @@ jar {
             'Implementation-Version': version,
             'MixinConfigs': 'orbisguard-mixins.mixins.json'
         )
+    }
+}
+
+// Every @Redirect/@WrapMethod/@Shadow must still resolve in the server jar or the server
+// refuses to boot (required: true). Descriptor changes usually compile fine, so check the
+// bytecode directly. Run after bumping hytale_server_version; CI runs it on every push.
+tasks.register('checkMixinTargets', Exec) {
+    group = 'verification'
+    description = 'Checks every mixin injection point against the Hytale server jar.'
+
+    def windows = System.getProperty('os.name').toLowerCase().contains('windows')
+    def javap = javaToolchains.compilerFor {
+        languageVersion = JavaLanguageVersion.of(25)
+    }.map { it.metadata.installationPath.file(windows ? 'bin/javap.exe' : 'bin/javap').asFile.path }
+
+    doFirst {
+        def serverJar = configurations.compileClasspath.find { it.name == "Server-${hytale_server_version}.jar" }
+        if (serverJar == null) {
+            throw new GradleException("Hytale server ${hytale_server_version} not on the compile classpath")
+        }
+        commandLine(windows ? 'python' : 'python3', file('scripts/check_mixins.py'), serverJar,
+            file('src/main/java/com/orbisguard/mixins/mixin'), javap.get())
     }
 }

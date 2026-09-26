@@ -1,0 +1,34 @@
+name: server update check
+
+# Checks the mixins against the newest Hytale server on maven.hytale.com. A failed run means
+# the next server release would stop the server from booting with these mixins; a passing run
+# with a newer version means it's safe to bump hytale_server_version in gradle.properties.
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: 9.1.0
+
+      - name: Latest server version
+        id: server
+        run: |
+          latest=$(curl -sf https://maven.hytale.com/release/com/hypixel/hytale/Server/maven-metadata.xml | grep -oP '(?<=<release>)[^<]+')
+          pinned=$(grep '^hytale_server_version=' gradle.properties | cut -d= -f2 | tr -d '\r')
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          echo "pinned $pinned, latest $latest" >> "$GITHUB_STEP_SUMMARY"
+
+      - run: gradle build checkMixinTargets -Phytale_server_version=${{ steps.server.outputs.latest }}

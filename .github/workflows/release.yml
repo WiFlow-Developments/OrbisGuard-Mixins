@@ -1,0 +1,62 @@
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: 9.1.0
+
+      - name: Read versions
+        id: v
+        run: |
+          version=$(grep '^version=' gradle.properties | cut -d= -f2 | tr -d '\r')
+          server=$(grep '^hytale_server_version=' gradle.properties | cut -d= -f2 | tr -d '\r')
+          if [[ "v$version" != "$GITHUB_REF_NAME" ]]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match version=$version in gradle.properties"
+            exit 1
+          fi
+          if [[ "$version" == *-* ]]; then type=beta; else type=release; fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "server=$server" >> "$GITHUB_OUTPUT"
+          echo "type=$type" >> "$GITHUB_OUTPUT"
+
+      - run: gradle build checkMixinTargets
+
+      - name: Release notes
+        run: python3 .github/scripts/changelog_entry.py "${{ steps.v.outputs.version }}" > notes.html
+
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # already there when re-running after a failed CurseForge upload
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then exit 0; fi
+          prerelease=""
+          [[ "${{ steps.v.outputs.type }}" == beta ]] && prerelease="--prerelease"
+          gh release create "$GITHUB_REF_NAME" "build/libs/OrbisGuard-Mixins-${{ steps.v.outputs.version }}.jar" \
+            --title "$GITHUB_REF_NAME" --notes-file notes.html $prerelease
+
+      - name: CurseForge
+        env:
+          CURSEFORGE_TOKEN: ${{ secrets.CURSEFORGE_TOKEN }}
+          CURSEFORGE_PROJECT_ID: ${{ vars.CURSEFORGE_PROJECT_ID }}
+          CURSEFORGE_GAME_VERSIONS: ${{ vars.CURSEFORGE_GAME_VERSIONS }}
+        run: |
+          bash .github/scripts/curseforge_upload.sh "build/libs/OrbisGuard-Mixins-${{ steps.v.outputs.version }}.jar" \
+            "OrbisGuard-Mixins ${{ steps.v.outputs.version }}" "${{ steps.v.outputs.type }}" notes.html "${{ steps.v.outputs.server }}"
